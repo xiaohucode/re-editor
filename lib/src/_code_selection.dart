@@ -148,7 +148,7 @@ class _CodeSelectionGestureDetectorState extends State<_CodeSelectionGestureDete
     }
   }
 
-  bool get _isMobile => Platform.isAndroid || Platform.isIOS;
+  bool get _isMobile => kIsAndroid || kIsIOS;
 
   bool get _isShiftPressed => _isMobile ? false : HardwareKeyboard.instance.logicalKeysPressed
     .any(<LogicalKeyboardKey>{
@@ -491,7 +491,7 @@ class _MobileSelectionOverlayController implements _SelectionOverlayController {
   }
 
   TextSelectionControls get selectionControls {
-    if (Platform.isAndroid) {
+    if (kIsAndroid) {
       return materialTextSelectionControls;
     } else {
       return cupertinoTextSelectionControls;
@@ -649,7 +649,7 @@ class _MobileSelectionOverlayController implements _SelectionOverlayController {
   }
 
   Widget _buildStartHandle(BuildContext context, TextSelectionHandleType type) {
-    if (Platform.isIOS && type == TextSelectionHandleType.collapsed) {
+    if (kIsIOS && type == TextSelectionHandleType.collapsed) {
       type = TextSelectionHandleType.right;
     }
     return CodeEditorTapRegion(
@@ -752,7 +752,7 @@ class _MobileSelectionOverlayController implements _SelectionOverlayController {
       controller.selection = newSelection;
       return;
     }
-    if (Platform.isAndroid) {
+    if (kIsAndroid) {
       newSelection = CodeLineSelection(
         baseIndex: position.index,
         baseOffset: position.offset,
@@ -831,7 +831,7 @@ class _MobileSelectionOverlayController implements _SelectionOverlayController {
       return;
     }
 
-    if (Platform.isAndroid) {
+    if (kIsAndroid) {
       newSelection = CodeLineSelection(
         baseIndex: controller.selection.baseIndex,
         baseOffset: controller.selection.baseOffset,
@@ -1094,121 +1094,32 @@ class _MobileSelectionToolbarController implements MobileSelectionToolbarControl
       return;
     }
     final OverlayEntry entry = OverlayEntry(
-      builder: (context) =>  _MobileSelectionToolbar(
+      builder: (_) => _SelectionToolbarWrapper(
         visibility: visibility,
         layerLink: layerLink,
-        anchors: anchors,
-        renderRect: renderRect,
-        items: builder(context, controller),
-        onDismiss: () {
-          hide(context);
-        },
-        onRefresh: () {
-          show(
-            context: context,
-            controller: controller,
-            anchors: anchors,
-            renderRect: renderRect,
-            layerLink: layerLink,
-            visibility: visibility
-          );
-        },
+        offset: -renderRect!.topLeft,
+        child: builder(
+          context: context,
+          anchors: anchors,
+          controller: controller,
+          onDismiss: () {
+            hide(context);
+          },
+          onRefresh: () {
+            show(
+              context: context,
+              controller: controller,
+              anchors: anchors,
+              renderRect: renderRect,
+              layerLink: layerLink,
+              visibility: visibility
+            );
+          },
+        )
       )
     );
     overlay.insert(entry);
     _entry = entry;
-  }
-
-}
-
-class _MobileSelectionToolbar extends StatelessWidget {
-
-  final LayerLink layerLink;
-  final ValueListenable<bool>? visibility;
-  final TextSelectionToolbarAnchors anchors;
-  final Rect? renderRect;
-  final List<ToolbarMenuItem> items;
-  final VoidCallback onDismiss;
-  final VoidCallback onRefresh;
-
-  const _MobileSelectionToolbar({
-    required this.layerLink,
-    required this.visibility,
-    required this.anchors,
-    this.renderRect,
-    required this.items,
-    required this.onDismiss,
-    required this.onRefresh,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (items.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    final List<Widget> resultChildren = _getAdaptiveButtons(context, items).toList();
-    Widget? toolbar;
-    if (Platform.isIOS) {
-      toolbar = CupertinoTextSelectionToolbar(
-        anchorAbove: anchors.primaryAnchor,
-        anchorBelow: anchors.secondaryAnchor == null ? anchors.primaryAnchor : anchors.secondaryAnchor!,
-        children: resultChildren,
-      );
-    }
-    if (Platform.isAndroid) {
-      toolbar = TextSelectionToolbar(
-        anchorAbove: anchors.primaryAnchor,
-        anchorBelow: anchors.secondaryAnchor == null ? anchors.primaryAnchor : anchors.secondaryAnchor!,
-        children: resultChildren,
-      );
-    }
-    if (toolbar == null) {
-      throw UnimplementedError();
-    }
-    return _SelectionToolbarWrapper(
-      visibility: visibility,
-      layerLink: layerLink,
-      offset: -renderRect!.topLeft,
-      child: toolbar
-    );
-  }
-
-  Iterable<Widget> _getAdaptiveButtons(BuildContext context, List<ToolbarMenuItem> buttonItems) {
-    if (Platform.isAndroid) {
-      final List<Widget> buttons = <Widget>[];
-      for (int i = 0; i < buttonItems.length; i++) {
-        final ToolbarMenuItem buttonItem = buttonItems[i];
-        buttons.add(TextSelectionToolbarTextButton(
-          padding: TextSelectionToolbarTextButton.getPadding(i, buttonItems.length),
-          onPressed: () {
-            buttonItem.onTap.call();
-            if (buttonItem.refreshToolbarAfterTap) {
-              onRefresh();
-            } else {
-              onDismiss();
-            }
-          },
-          child: Text(buttonItem.title),
-        ));
-      }
-      return buttons;
-    }
-    if (Platform.isIOS) {
-      return buttonItems.map((ToolbarMenuItem buttonItem) {
-        return CupertinoTextSelectionToolbarButton.text(
-          onPressed: () {
-            buttonItem.onTap.call();
-            if (buttonItem.refreshToolbarAfterTap) {
-              onRefresh();
-            } else {
-              onDismiss();
-            }
-          },
-          text: buttonItem.title,
-        );
-      });
-    }
-    throw UnimplementedError();
   }
 
 }
